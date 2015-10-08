@@ -16,8 +16,8 @@ module GitLfsS3
       @bucket ||= Aws::S3::Bucket.new(name: bucket_name, client: s3)
     end
 
-    def object_data(oid)
-      bucket.object("data/#{oid}")
+    def object_data(project_guid, oid)
+      bucket.object("#{project_guid}/#{oid}")
     end
 
     def aws_region

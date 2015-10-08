@@ -12,9 +12,9 @@ module GitLfsS3
       UploadRequired
     ]
 
-    def service_for(data)
+    def service_for(project_guid, data)
       req = MultiJson.load data.tap { |d| d.rewind }.read
-      object = object_data(req['oid'])
+      object = object_data(project_guid, req['oid'])
 
       MODULES.each do |mod|
         return mod.new(req, object) if mod.should_handle?(req, object)
