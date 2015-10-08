@@ -90,6 +90,7 @@ module GitLfsS3
     end
 
     post '/verify', provides: 'application/vnd.git-lfs+json' do
+      project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       data = MultiJson.load(request.body.tap { |b| b.rewind }.read)
       object = object_data(project_guid, data['oid'])
 
