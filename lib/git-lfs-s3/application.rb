@@ -53,6 +53,17 @@ module GitLfsS3
     get "/objects/:oid", provides: 'application/vnd.git-lfs+json' do
       project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       object = object_data(project_guid, params[:oid])
+      object_link = object_data(project_guid, params[:oid]).presigned_url(:get).to_s
+
+      uri = URI.parse(object_link)
+      query = Hash[URI.decode_www_form(uri.query)]
+      authorization = "#{query['X-Amz-Algorithm']} Credential=#{query['X-Amz-Credential']}, SignedHeaders=#{query['X-Amz-SignedHeaders']}, Signature=#{query['X-Amz-Signature']}"
+      expires = query['X-Amz-Expires']
+
+      %w(Algorithm Credential SignedHeaders Signature Expires).each do |header|
+        query.delete("X-Amz-#{header}")
+      end
+      uri.query = URI.encode_www_form(query)
 
       if object.exists?
         status 200
@@ -65,7 +76,12 @@ module GitLfsS3
             },
             'download' => {
               # TODO: cloudfront support
-              'href' => object_data(project_guid, params[:oid]).presigned_url(:get)
+              'href' => uri.to_s,
+              # https://github.com/github/git-lfs/issues/960 
+              'headers': {
+                'Authorization': authorization,
+              },
+              'expires': expires,
             }
           }
         }
