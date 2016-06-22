@@ -1,3 +1,5 @@
+require 'digest/sha2'
+
 module GitLfsS3
   class Application < Sinatra::Application
     include AwsHelpers
@@ -27,6 +29,15 @@ module GitLfsS3
       def logger
         settings.logger
       end
+
+      def hmac(key, data, hex = false)
+        digest = OpenSSL::Digest.new('sha256')
+        if hex
+          OpenSSL::HMAC.hexdigest(digest, key, data)
+        else
+          OpenSSL::HMAC.digest(digest, key, data)
+        end
+      end
     end
 
     def authorized?
@@ -53,44 +64,78 @@ module GitLfsS3
     get "/objects/:oid", provides: 'application/vnd.git-lfs+json' do
       project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       object = object_data(project_guid, params[:oid])
-      object_link = object_data(project_guid, params[:oid]).presigned_url(:get).to_s
 
-      uri = URI.parse(object_link)
-      query = Hash[URI.decode_www_form(uri.query)]
-      authorization = "#{query['X-Amz-Algorithm']} Credential=#{query['X-Amz-Credential']}, SignedHeaders=#{query['X-Amz-SignedHeaders']}, Signature=#{query['X-Amz-Signature']}"
-      expires = query['X-Amz-Expires']
-
-      %w(Algorithm Credential SignedHeaders Signature Expires).each do |header|
-        query.delete("X-Amz-#{header}")
+      unless object.exists?
+        status 404
+        return body MultiJson.dump({message: 'Object not found'})
       end
-      uri.query = URI.encode_www_form(query)
 
-      if object.exists?
-        status 200
-        resp = {
-          'oid' => params[:oid],
-          'size' => object.size,
-          '_links' => {
-            'self' => {
-              'href' => File.join(settings.server_url, 'objects', params[:oid])
-            },
-            'download' => {
-              # TODO: cloudfront support
-              'href' => uri.to_s,
-              # https://github.com/github/git-lfs/issues/960 
-              'headers': {
-                'Authorization': authorization,
-              },
-              'expires': expires,
-            }
+      # For more information about authentication in LFS,
+      # read https://github.com/github/git-lfs/issues/960 
+
+      object_link = object_data(project_guid, params[:oid]).public_url
+      uri = URI.parse(object_link)
+      now = Time.now.utc
+      now_datetime = now.strftime('%Y%m%dT%H%M%SZ')
+      now_date = now.strftime('%Y%m%d')
+      method = 'GET'
+      expires = (5 * 60).to_s # 5 min
+      payload_hash = (Digest::SHA2.new << '').to_s
+      algorithm = 'AWS4-HMAC-SHA256'
+      service = 's3'
+      cred_scope = "#{now_date}/#{aws_region}/#{service}/aws4_request"
+      credential = aws_access_key_id + '/' + cred_scope
+
+      headers = {
+        'Host' => uri.host,
+      }
+      signed_headers = headers.keys.map(&:downcase).join(';')
+      header_list = headers.map{|k,v| "#{k.downcase}:#{v.downcase.strip.gsub(/  /, ' ')}"}.sort.join("\n")
+
+      query = {
+        'X-Amz-Algorithm' => algorithm,
+        'X-Amz-Credential' => credential,
+        'X-Amz-Date' => now_datetime,
+        'X-Amz-Expires' => expires,
+        'X-Amz-SignedHeaders' => signed_headers,
+      }
+      uri.query = URI.encode_www_form(query.sort_by{|k,v| k})
+
+      # Step 1: Construct Canonical Request
+      canonical_request = [method, uri.path, uri.query, header_list + "\n", signed_headers, payload_hash].join("\n")
+      logger.debug "Canonical Request: \n#{canonical_request}"
+
+      # Step 2: String to Sign
+      request_hash = (Digest::SHA2.new << canonical_request).to_s
+      string_to_sign = [algorithm, now_datetime, cred_scope, request_hash].join("\n")
+      logger.debug "String To Sign: \n#{string_to_sign}"
+
+      # Step 3: Calculate Signature
+      signing_key = hmac(hmac(hmac(hmac('AWS4' + aws_secret_access_key, now_date), aws_region), service), 'aws4_request')
+      signature = hmac(signing_key, string_to_sign, true)
+      logger.debug "Signature: \n#{signature}"
+
+      # Step 4: Add Signature to Request
+      query['X-Amz-Signature'] = signature
+      uri.query = URI.encode_www_form(query.sort_by{|k,v| k})
+
+      status 200
+      resp = {
+        'oid' => params[:oid],
+        'size' => object.size,
+        '_links' => {
+          'self' => {
+            'href' => File.join(settings.server_url, 'objects', params[:oid])
+          },
+          'download' => {
+            # TODO: cloudfront support
+            'href' => uri.to_s,
           }
         }
+      }
+      logger.debug "Response: \n#{JSON.pretty_generate(resp)}"
 
-        body MultiJson.dump(resp)
-      else
-        status 404
-        body MultiJson.dump({message: 'Object not found'})
-      end
+      body MultiJson.dump(resp)
     end
 
     post "/objects", provides: 'application/vnd.git-lfs+json' do
