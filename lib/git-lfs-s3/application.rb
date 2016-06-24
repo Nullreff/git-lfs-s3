@@ -93,6 +93,7 @@ module GitLfsS3
       header_list = headers.map{|k,v| "#{k.downcase}:#{v.downcase.strip.gsub(/  /, ' ')}"}.sort.join("\n")
 
       query = {
+        'token' => '1',
         'X-Amz-Algorithm' => algorithm,
         'X-Amz-Credential' => credential,
         'X-Amz-Date' => now_datetime,
