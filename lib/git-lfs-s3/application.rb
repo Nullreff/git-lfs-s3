@@ -72,19 +72,17 @@ module GitLfsS3
 
       # For more information about authentication in LFS,
       # read https://github.com/github/git-lfs/issues/960 
-      request = object_data(project_guid, params[:oid]).presigned_url_with_query(:get)
-
       status 200
       resp = {
         'oid' => params[:oid],
         'size' => object.size,
         '_links' => {
           'self' => {
-            'href' => File.join(settings.server_url, 'objects', params[:oid])
+            'href' => request.url
           },
           'download' => {
             # TODO: cloudfront support
-            'href' => request.to_s
+            'href' => object_data(project_guid, params[:oid]).presigned_url_with_token(:get)
           }
         }
       }
@@ -97,7 +95,7 @@ module GitLfsS3
       project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
 
       logger.debug headers.inspect
-      service = UploadService.service_for(project_guid, request.body)
+      service = UploadService.service_for(project_guid, request)
       logger.debug service.response
 
       status service.status

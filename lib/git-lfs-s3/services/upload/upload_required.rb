@@ -6,6 +6,7 @@ module GitLfsS3
       end
 
       def response
+        verify_link = "#{protocol}://#{host}#{File.join(server_path, 'verify?token=1')}"
         {
           '_links' => {
             'upload' => {
@@ -13,7 +14,7 @@ module GitLfsS3
               'header' => upload_headers
             },
             'verify' => {
-              'href' => File.join(server_url, 'verify')
+              'href' => verify_link,
             }
           }
         }
@@ -26,7 +27,7 @@ module GitLfsS3
       private
 
       def upload_destination
-        object.presigned_url(:put)
+        object.presigned_url_with_token(:put)
       end
 
       def upload_headers

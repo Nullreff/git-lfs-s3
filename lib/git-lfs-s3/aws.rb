@@ -38,9 +38,9 @@ end
 module Aws
   module S3
     class Object
-      def presigned_url_with_query(http_method, params = {})
+      def presigned_url_with_token(http_method, params = {})
         presigner = Aws::S3::Presigner.new(client: client)
-        presigner.presigned_url_with_query("#{http_method.downcase}_object", params.merge(
+        presigner.presigned_url_with_token("#{http_method.downcase}_object", params.merge(
           bucket: bucket_name,
           key: key,
         ))
@@ -48,7 +48,7 @@ module Aws
     end
 
     class Presigner
-      def presigned_url_with_query(method, params = {})
+      def presigned_url_with_token(method, params = {})
         if params[:key].nil? or params[:key] == ''
           raise ArgumentError, ":key must not be blank"
         end

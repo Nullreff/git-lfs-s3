@@ -3,11 +3,13 @@ module GitLfsS3
     class Base
       include AwsHelpers
       
-      attr_reader :req, :object
+      attr_reader :req, :object, :project_guid, :host
 
-      def initialize(req, object)
+      def initialize(req, object, project_guid, host)
         @req = req
         @object = object
+        @project_guid = project_guid
+        @host = host
       end
 
       def response
@@ -20,8 +22,12 @@ module GitLfsS3
 
       private
 
-      def server_url
-        GitLfsS3::Application.settings.server_url
+      def server_path
+        GitLfsS3::Application.settings.server_path.gsub(':project_guid', project_guid)
+      end
+
+      def protocol
+        GitLfsS3::Application.settings.server_ssl ? 'https' : 'http'
       end
     end
   end
