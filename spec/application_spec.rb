@@ -20,7 +20,7 @@ describe GitLfsS3::Application do
     GitLfsS3::Application.set :repo_selector, lambda {|req| 'test-repo'}
   end
   
-  def bucket_stub(exists, size, url)
+  def stub_bucket(exists, size, url)
     bucket_class = double("Bucket Class")
     allow(bucket_class).to receive(:new) do
       bucket = double("Bucket Instance")
@@ -38,12 +38,12 @@ describe GitLfsS3::Application do
     bucket_class
   end
 
-  def bucket_stub_exists
-    bucket_stub(true, EXISTING_SIZE, PRESIGNED_URL)
+  def stub_bucket_exists
+    stub_bucket(true, EXISTING_SIZE, PRESIGNED_URL)
   end
 
-  def bucket_stub_missing
-    bucket_stub(false, 0, PRESIGNED_URL)
+  def stub_bucket_missing
+    stub_bucket(false, 0, PRESIGNED_URL)
   end
 
   it 'returns an online message when calling GET on the root' do
@@ -52,7 +52,7 @@ describe GitLfsS3::Application do
   end
 
   it 'returns an S3 url for downloading files' do
-    stub_const('Aws::S3::Bucket', bucket_stub_exists)
+    stub_const('Aws::S3::Bucket', stub_bucket_exists)
     url = "/objects/#{EXISTING_OID}"
     get url
 
@@ -65,7 +65,7 @@ describe GitLfsS3::Application do
   end
 
   it 'returns an S3 url for uploading files' do
-    stub_const('Aws::S3::Bucket', bucket_stub_missing)
+    stub_const('Aws::S3::Bucket', stub_bucket_missing)
     post '/objects', {oid: MISSING_OID}.to_json
 
     data = JSON.parse(last_response.body)
@@ -75,7 +75,7 @@ describe GitLfsS3::Application do
   end
 
   it 'returns an S3 url for an already uplaoded file' do
-    stub_const('Aws::S3::Bucket', bucket_stub_exists)
+    stub_const('Aws::S3::Bucket', stub_bucket_exists)
     post '/objects', {oid: EXISTING_OID, size: EXISTING_SIZE}.to_json
 
     data = JSON.parse(last_response.body)
@@ -85,14 +85,14 @@ describe GitLfsS3::Application do
   end
 
   it 'verifys that a file was uploaded to S3 correctly' do
-    stub_const('Aws::S3::Bucket', bucket_stub_exists)
+    stub_const('Aws::S3::Bucket', stub_bucket_exists)
     post '/verify', {oid: EXISTING_OID, size: EXISTING_SIZE}.to_json
 
     expect(last_response.status).to eq(200)
   end
 
   it 'verifys that a file is missing from S3' do
-    stub_const('Aws::S3::Bucket', bucket_stub_missing)
+    stub_const('Aws::S3::Bucket', stub_bucket_missing)
     post '/verify', {oid: MISSING_OID}.to_json
 
     expect(last_response.status).to eq(404)
