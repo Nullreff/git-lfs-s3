@@ -38,6 +38,11 @@ module GitLfsS3
           OpenSSL::HMAC.digest(digest, key, data)
         end
       end
+
+      def project_guid
+        # "PATH_INFO"=>"/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs/objects"
+        request.env["PATH_INFO"][/projects\/(\S*)\/lfs/,1]
+      end
     end
 
     def authorized?
@@ -62,7 +67,6 @@ module GitLfsS3
     end
 
     get "/objects/:oid", provides: 'application/vnd.git-lfs+json' do
-      project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       object = object_data(project_guid, params[:oid])
 
       unless object.exists?
@@ -91,9 +95,6 @@ module GitLfsS3
     end
 
     post "/objects", provides: 'application/vnd.git-lfs+json' do
-      # "REQUEST_URI"=>"/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs/objects"
-      project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
-
       logger.debug headers.inspect
       service = UploadService.service_for(project_guid, request)
       logger.debug service.response
@@ -103,7 +104,6 @@ module GitLfsS3
     end
 
     post '/verify', provides: 'application/vnd.git-lfs+json' do
-      project_guid = request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       data = MultiJson.load(request.body.tap { |b| b.rewind }.read)
       object = object_data(project_guid, data['oid'])
 
