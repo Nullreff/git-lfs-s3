@@ -40,8 +40,7 @@ module GitLfsS3
       end
 
       def project_guid
-        # "REQUEST_URI"=>"/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs/objects"
-        request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
+        GitLfsS3::Application.settings.repo_selector(request)
       end
     end
 

@@ -13,7 +13,7 @@ module GitLfsS3
     end
 
     def bucket
-      @bucket ||= Aws::S3::Bucket.new(name: bucket_name, client: s3)
+      @bucket = Aws::S3::Bucket.new(name: bucket_name, client: s3)
     end
 
     def object_data(project_guid, oid)
