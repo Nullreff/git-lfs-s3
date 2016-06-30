@@ -40,8 +40,8 @@ module GitLfsS3
       end
 
       def project_guid
-        # "PATH_INFO"=>"/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs/objects"
-        request.env["PATH_INFO"][/projects\/(\S*)\/lfs/,1]
+        # "REQUEST_URI"=>"/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs/objects"
+        request.env["REQUEST_URI"][/projects\/(\S*)\/lfs/,1]
       end
     end
 
