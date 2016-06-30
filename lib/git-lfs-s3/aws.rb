@@ -17,8 +17,7 @@ module GitLfsS3
     end
 
     def object_data(project_guid, oid)
-      user = Rails.configuration.try(:s3_user) ? Rails.configuration.s3_user + '/' : ""
-      bucket.object("#{user}#{project_guid}/#{oid}")
+      bucket.object("#{project_guid}/#{oid}")
     end
 
     def aws_region
