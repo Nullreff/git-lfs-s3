@@ -20,16 +20,16 @@ describe GitLfsS3::Application do
     GitLfsS3::Application.set :repo_selector, lambda {|req| 'test-repo'}
   end
   
-  def bucket_stub
+  def bucket_stub(exists, size, url)
     bucket_class = double("Bucket Class")
     allow(bucket_class).to receive(:new) do
       bucket = double("Bucket Instance")
       allow(bucket).to receive(:object) do
         object = double("Object Instance")
         allow(object).to receive_messages(
-          exists?: true,
-          size: EXISTING_SIZE,
-          presigned_url_with_token: PRESIGNED_URL,
+          exists?: exists,
+          size: size,
+          presigned_url_with_token: url,
         )
         object
       end
@@ -38,13 +38,21 @@ describe GitLfsS3::Application do
     bucket_class
   end
 
+  def bucket_stub_exists
+    bucket_stub(true, EXISTING_SIZE, PRESIGNED_URL)
+  end
+
+  def bucket_stub_missing
+    bucket_stub(false, 0, PRESIGNED_URL)
+  end
+
   it 'returns an online message when calling GET on the root' do
     get '/'
     expect(last_response).to be_ok
   end
 
   it 'returns an S3 url for downloading files' do
-    stub_const('Aws::S3::Bucket', bucket_stub)
+    stub_const('Aws::S3::Bucket', bucket_stub_exists)
     url = "/objects/#{EXISTING_OID}"
     get url
 
@@ -57,23 +65,37 @@ describe GitLfsS3::Application do
   end
 
   it 'returns an S3 url for uploading files' do
-    stub_const('Aws::S3::Bucket', bucket_stub)
+    stub_const('Aws::S3::Bucket', bucket_stub_missing)
     post '/objects', {oid: MISSING_OID}.to_json
 
     data = JSON.parse(last_response.body)
     expect(last_response.status).to eq(202)
     expect(data['_links']['upload']['href']).to match(/amazonaws\.com/)
-    expect(data['_links']['upload']['header']).not_to be_empty
     expect(data['_links']['verify']['href']).to match(/\/verify/)
   end
 
   it 'returns an S3 url for an already uplaoded file' do
-    stub_const('Aws::S3::Bucket', bucket_stub)
-    post '/objects', {oid: EXISTING_OID}.to_json
+    stub_const('Aws::S3::Bucket', bucket_stub_exists)
+    post '/objects', {oid: EXISTING_OID, size: EXISTING_SIZE}.to_json
 
     data = JSON.parse(last_response.body)
-    expect(last_response.status).to eq(202)
-    expect(data['_links']['upload']['href']).to match(/amazonaws\.com/)
+    expect(last_response.status).to eq(200)
+    expect(data['_links']['download']['href']).to match(/amazonaws\.com/)
+    expect(data['_links']['verify']).to be_nil
+  end
+
+  it 'verifys that a file was uploaded to S3 correctly' do
+    stub_const('Aws::S3::Bucket', bucket_stub_exists)
+    post '/verify', {oid: EXISTING_OID, size: EXISTING_SIZE}.to_json
+
+    expect(last_response.status).to eq(200)
+  end
+
+  it 'verifys that a file is missing from S3' do
+    stub_const('Aws::S3::Bucket', bucket_stub_missing)
+    post '/verify', {oid: MISSING_OID}.to_json
+
+    expect(last_response.status).to eq(404)
   end
 end
 
