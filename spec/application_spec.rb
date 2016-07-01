@@ -5,7 +5,7 @@ describe GitLfsS3::Application do
   EXISTING_OID = '087a4597b239a1ab0e916956f187c7d404b3c3b8aaf3b1fb99027ec1d19cbb59'
   EXISTING_SIZE = '123456'
   MISSING_OID = '0000000000000000000000000000000000000000000000000000000000000000'
-  PRESIGNED_URL = 'http://us-west-2.amazonaws.com/bucketname/username/project_guid/oid'
+  PRESIGNED_URL = 'http://us-west-2.amazonaws.com/bucketname/project/oid'
   PROJECT_URL = '/api/projects/10e3eeeb-f55c-4191-8966-17577093642e/lfs'
 
   before do
@@ -16,8 +16,8 @@ describe GitLfsS3::Application do
     GitLfsS3::Application.set :aws_access_key_id, 'test-key-id'
     GitLfsS3::Application.set :aws_secret_access_key, 'test-key-secret'
     GitLfsS3::Application.set :server_ssl, false
-    GitLfsS3::Application.set :server_path, '/:project_guid/lfs'
-    GitLfsS3::Application.set :repo_selector, lambda {|req| 'test-repo'}
+    GitLfsS3::Application.set :server_path, '/:project/lfs'
+    GitLfsS3::Application.set :project_selector, lambda {|req| 'test-repo'}
   end
   
   def stub_bucket(exists, size, url)

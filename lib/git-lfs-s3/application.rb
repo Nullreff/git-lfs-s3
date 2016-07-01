@@ -39,8 +39,8 @@ module GitLfsS3
         end
       end
 
-      def project_guid
-        GitLfsS3::Application.settings.repo_selector(request)
+      def project
+        GitLfsS3::Application.settings.project_selector(request)
       end
     end
 
@@ -66,7 +66,7 @@ module GitLfsS3
     end
 
     get "/objects/:oid", provides: 'application/vnd.git-lfs+json' do
-      object = object_data(project_guid, params[:oid])
+      object = object_data(project, params[:oid])
 
       unless object.exists?
         status 404
@@ -85,7 +85,7 @@ module GitLfsS3
           },
           'download' => {
             # TODO: cloudfront support
-            'href' => object_data(project_guid, params[:oid]).presigned_url_with_token(:get)
+            'href' => object_data(project, params[:oid]).presigned_url_with_token(:get)
           }
         }
       }
@@ -95,7 +95,7 @@ module GitLfsS3
 
     post "/objects", provides: 'application/vnd.git-lfs+json' do
       logger.debug headers.inspect
-      service = UploadService.service_for(project_guid, request)
+      service = UploadService.service_for(project, request)
       logger.debug service.response
 
       status service.status
@@ -104,7 +104,7 @@ module GitLfsS3
 
     post '/verify', provides: 'application/vnd.git-lfs+json' do
       data = MultiJson.load(request.body.tap { |b| b.rewind }.read)
-      object = object_data(project_guid, data['oid'])
+      object = object_data(project, data['oid'])
 
       if object.exists? && object.size == data['size']
         status 200

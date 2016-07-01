@@ -3,12 +3,12 @@ module GitLfsS3
     class Base
       include AwsHelpers
       
-      attr_reader :req, :object, :project_guid, :host
+      attr_reader :req, :object, :project, :host
 
-      def initialize(req, object, project_guid, host)
+      def initialize(req, object, project, host)
         @req = req
         @object = object
-        @project_guid = project_guid
+        @project = project
         @host = host
       end
 
@@ -23,7 +23,7 @@ module GitLfsS3
       private
 
       def server_path
-        GitLfsS3::Application.settings.server_path.gsub(':project_guid', project_guid)
+        GitLfsS3::Application.settings.server_path.gsub(':project', project)
       end
 
       def protocol
