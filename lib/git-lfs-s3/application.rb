@@ -42,6 +42,13 @@ module GitLfsS3
       def project
         GitLfsS3::Application.settings.project_selector(request)
       end
+
+      def verify_link 
+        protocol = GitLfsS3::Application.settings.server_ssl ? 'https' : 'http'
+        server_path = GitLfsS3::Application.settings.server_path.gsub(':project', project)
+        host = request.host_with_port
+        "#{protocol}://#{host}#{File.join(server_path, 'verify?token=1')}"
+      end
     end
 
     def authorized?
@@ -65,6 +72,38 @@ module GitLfsS3
       "Git LFS S3 is online."
     end
 
+    # Git LFS v1 Batch API
+    # https://github.com/github/git-lfs/blob/master/docs/api/v1/http-v1-batch.md
+    post '/objects/batch', provides: 'application/vnd.git-lfs+json' do
+      data = MultiJson.load(request.body.tap { |b| b.rewind }.read)
+
+      operation = data['operation']
+      results = (data['objects'] || []).map do |obj|
+        object = object_data(project, obj['oid'])
+        base = {
+          oid: obj['oid'],
+          size: obj['size'],
+        }
+
+        base.merge(
+          if object.exists?
+            {actions: {download: {href: object.presigned_url_with_token(:get)}}}
+          else
+            case operation
+            when 'upload'
+              {actions: {upload: {href: object.presigned_url_with_token(:put)}, verify: {href: verify_link}}}
+            when 'download'
+              {error: {code: 404, message: 'Object does not exist on the server'}}
+            end
+          end
+        )
+      end
+
+      body MultiJson.dump({objects: results})
+    end
+
+    # Git LFS v1 Legacy API
+    # https://github.com/github/git-lfs/blob/master/docs/api/v1/http-v1-legacy.md
     get "/objects/:oid", provides: 'application/vnd.git-lfs+json' do
       object = object_data(project, params[:oid])
 
