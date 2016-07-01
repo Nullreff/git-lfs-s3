@@ -37,63 +37,25 @@ end
 module Aws
   module S3
     class Object
-      def presigned_url_with_token(http_method, params = {})
+      def presigned_url_with_token(http_method)
         presigner = Aws::S3::Presigner.new(client: client)
-        presigner.presigned_url_with_token("#{http_method.downcase}_object", params.merge(
+        presigner.presigned_url_with_token("#{http_method.downcase}_object", {
           bucket: bucket_name,
           key: key,
-        ))
+        })
       end
     end
 
     class Presigner
       def presigned_url_with_token(method, params = {})
-        if params[:key].nil? or params[:key] == ''
-          raise ArgumentError, ":key must not be blank"
-        end
-        virtual_host = !!params.delete(:virtual_host)
-        scheme = http_scheme(params, virtual_host)
-
+        scheme = @client.config.endpoint.scheme
         req = @client.build_request(method, params)
 
-        use_bucket_as_hostname(req) if virtual_host
-        sign_request_with_token(req, expires_in(params), scheme)
+        sign_request_with_token(req, FIFTEEN_MINUTES, scheme)
         req.send_request.data
       end
 
 private
-
-      def http_scheme(params, virtual_host)
-        if params.delete(:secure) == false || virtual_host
-          'http'
-        else
-          @client.config.endpoint.scheme
-        end
-      end
-
-      def expires_in(params)
-        if expires_in = params.delete(:expires_in)
-          if expires_in > ONE_WEEK
-            msg = "expires_in value of #{expires_in} exceeds one-week maximum"
-            raise ArgumentError, msg
-          end
-          expires_in
-        else
-          FIFTEEN_MINUTES
-        end
-      end
-
-      def use_bucket_as_hostname(req)
-        req.handlers.remove(Plugins::S3BucketDns::Handler)
-        req.handle do |context|
-          uri = context.http_request.endpoint
-          uri.host = context.params[:bucket]
-          uri.path.sub!("/#{context.params[:bucket]}", '')
-          uri.scheme = 'http'
-          uri.port = 80
-          @handler.call(context)
-        end
-      end
 
       def sign_request_with_token(req, expires_in, scheme)
         req.handlers.remove(Plugins::S3RequestSigner::SigningHandler)
