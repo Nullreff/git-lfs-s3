@@ -57,7 +57,7 @@ module Aws
         req = @client.build_request(method, params)
 
         use_bucket_as_hostname(req) if virtual_host
-        sign_request(req, expires_in(params), scheme)
+        sign_request_with_token(req, expires_in(params), scheme)
         req.send_request.data
       end
 
@@ -95,7 +95,7 @@ private
         end
       end
 
-      def sign_request(req, expires_in, scheme)
+      def sign_request_with_token(req, expires_in, scheme)
         req.handlers.remove(Plugins::S3RequestSigner::SigningHandler)
         req.handlers.remove(Seahorse::Client::Plugins::ContentLength::Handler)
         req.handle(step: :send) do |context|
