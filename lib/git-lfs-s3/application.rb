@@ -73,8 +73,6 @@ module GitLfsS3
         return body MultiJson.dump({message: 'Object not found'})
       end
 
-      # For more information about authentication in LFS,
-      # read https://github.com/github/git-lfs/issues/960 
       status 200
       resp = {
         'oid' => params[:oid],

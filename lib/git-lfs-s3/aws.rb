@@ -36,6 +36,9 @@ end
 
 module Aws
   module S3
+
+    # Modified from the code at
+    # https://github.com/aws/aws-sdk-ruby/blob/master/aws-sdk-resources/lib/aws-sdk-resources/services/s3/object.rb
     class Object
       def presigned_url_with_token(http_method)
         presigner = Aws::S3::Presigner.new(client: client)
@@ -46,6 +49,8 @@ module Aws
       end
     end
 
+    # Modified from the code at
+    # https://github.com/aws/aws-sdk-ruby/blob/master/aws-sdk-core/lib/aws-sdk-core/s3/presigner.rb
     class Presigner
       def presigned_url_with_token(method, params = {})
         scheme = @client.config.endpoint.scheme
@@ -55,7 +60,7 @@ module Aws
         req.send_request.data
       end
 
-private
+    private
 
       def sign_request_with_token(req, expires_in, scheme)
         req.handlers.remove(Plugins::S3RequestSigner::SigningHandler)
@@ -68,6 +73,8 @@ private
             context.http_request.endpoint = URI.parse(endpoint.to_s)
           end
 
+          # For more information about authentication in LFS,
+          # read https://github.com/github/git-lfs/issues/960
           uri = context.http_request.endpoint
           query = Hash[URI.decode_www_form(uri.query || '')]
           query['token'] = '1'
@@ -85,7 +92,6 @@ private
           Seahorse::Client::Response.new(context: context, data: url)
         end
       end
-
     end
   end
 end
