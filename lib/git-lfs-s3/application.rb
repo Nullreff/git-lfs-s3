@@ -74,6 +74,7 @@ module GitLfsS3
 
     # Git LFS v1 Batch API
     # https://github.com/github/git-lfs/blob/master/docs/api/v1/http-v1-batch.md
+    VALID_OPERATIONS = %w(upload download)
     post '/objects/batch', provides: 'application/vnd.git-lfs+json' do
       data = MultiJson.load(request.body.tap { |b| b.rewind }.read)
 
@@ -86,7 +87,7 @@ module GitLfsS3
         }
 
         base.merge(
-          if object.exists?
+          if object.exists? && VALID_OPERATIONS.include?(operation)
             {actions: {download: {href: object.presigned_url_with_token(:get)}}}
           else
             case operation
@@ -94,6 +95,8 @@ module GitLfsS3
               {actions: {upload: {href: object.presigned_url_with_token(:put)}, verify: {href: verify_link}}}
             when 'download'
               {error: {code: 404, message: 'Object does not exist on the server'}}
+            else
+              {error: {code: 400, message: "Invalid operation '#{operation}'"}}
             end
           end
         )
