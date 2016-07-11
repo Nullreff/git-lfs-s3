@@ -30,15 +30,6 @@ module GitLfsS3
         settings.logger
       end
 
-      def hmac(key, data, hex = false)
-        digest = OpenSSL::Digest.new('sha256')
-        if hex
-          OpenSSL::HMAC.hexdigest(digest, key, data)
-        else
-          OpenSSL::HMAC.digest(digest, key, data)
-        end
-      end
-
       def project
         GitLfsS3::Application.settings.project_selector(request)
       end
