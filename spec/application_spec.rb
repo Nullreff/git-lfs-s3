@@ -44,7 +44,7 @@ describe GitLfsS3::Application do
   end
 
   def stub_bucket_missing
-    stub_bucket(false, 0, PRESIGNED_URL)
+    stub_bucket(false, MISSING_SIZE, PRESIGNED_URL)
   end
 
   it 'returns an online message when calling GET on the root' do
@@ -181,7 +181,7 @@ describe GitLfsS3::Application do
 
     it 'returns an S3 url for uploading files' do
       stub_const('Aws::S3::Bucket', stub_bucket_missing)
-      post '/objects', {oid: MISSING_OID}.to_json
+      post '/objects', {oid: MISSING_OID, size: MISSING_SIZE}.to_json
 
       data = JSON.parse(last_response.body)
       expect(last_response.status).to eq(202)
@@ -208,7 +208,7 @@ describe GitLfsS3::Application do
 
     it 'verifys that a file is missing from S3' do
       stub_const('Aws::S3::Bucket', stub_bucket_missing)
-      post '/verify', {oid: MISSING_OID}.to_json
+      post '/verify', {oid: MISSING_OID, size: MISSING_SIZE}.to_json
 
       expect(last_response.status).to eq(404)
     end
