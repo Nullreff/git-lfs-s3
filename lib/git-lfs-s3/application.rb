@@ -1,4 +1,4 @@
-require 'digest/sha2'
+require 'digest/sha1'
 
 module GitLfsS3
   class Application < Sinatra::Application
@@ -34,26 +34,31 @@ module GitLfsS3
         GitLfsS3::Application.settings.project_selector(request)
       end
 
+      #TODO: Generate an actual secure token
+      def generate_token
+        Digest::SHA1.hexdigest project
+      end
+
       def verify_link 
         protocol = GitLfsS3::Application.settings.server_ssl ? 'https' : 'http'
         server_path = GitLfsS3::Application.settings.server_path.gsub(':project', project)
         host = request.host_with_port
-        "#{protocol}://#{host}#{File.join(server_path, 'verify?token=1')}"
+        "#{protocol}://#{host}#{File.join(server_path, 'verify')}?token=#{generate_token}"
+      end
+
+      def verify_header
+        {Authorization: "RemoteAuth #{generate_token}"}
       end
     end
 
     def authorized?
-      true
-      # @auth ||=  Rack::Auth::Basic::Request.new(request.env)
-      # @auth.provided? && @auth.basic? && @auth.credentials && self.class.auth_callback.call(
-      #   @auth.credentials[0], @auth.credentials[1]
-      # )
+      request.env['HTTP_AUTHORIZATION'] == "RemoteAuth #{generate_token}"
     end
 
     def protected!
       unless authorized?
-        response['WWW-Authenticate'] = %(Basic realm="Restricted Area")
-        throw(:halt, [401, "Invalid username or password"])
+        response['WWW-Authenticate'] = %(RemoteAuth realm="Restricted Area")
+        throw(:halt, [401, 'Invalid authorization token'])
       end
     end
 
@@ -83,9 +88,11 @@ module GitLfsS3
           else
             case operation
             when 'upload'
-              {actions: {upload: {href: object.presigned_url_with_token(:put)}, verify: {href: verify_link}}}
+              {actions: {upload: {href: object.presigned_url_with_token(:put)},
+                         verify: {href: verify_link, header: verify_header}}}
             when 'download'
-              {error: {code: 404, message: 'Object does not exist on the server'}}
+              {
+                error: {code: 404, message: 'Object does not exist on the server'}}
             else
               {error: {code: 400, message: "Invalid operation '#{operation}'"}}
             end
