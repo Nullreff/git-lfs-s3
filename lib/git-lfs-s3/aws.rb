@@ -39,6 +39,7 @@ module Aws
 
     # Modified from the code at
     # https://github.com/aws/aws-sdk-ruby/blob/master/aws-sdk-resources/lib/aws-sdk-resources/services/s3/object.rb
+    # License: https://github.com/aws/aws-sdk-ruby/blob/master/LICENSE.txt
     class Object
       def presigned_url_with_token(http_method)
         presigner = Aws::S3::Presigner.new(client: client)
@@ -51,6 +52,7 @@ module Aws
 
     # Modified from the code at
     # https://github.com/aws/aws-sdk-ruby/blob/master/aws-sdk-core/lib/aws-sdk-core/s3/presigner.rb
+    # License: https://github.com/aws/aws-sdk-ruby/blob/master/LICENSE.txt
     class Presigner
       def presigned_url_with_token(method, params = {})
         scheme = @client.config.endpoint.scheme
