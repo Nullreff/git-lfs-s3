@@ -5,6 +5,7 @@ require 'time'
 module GitLfsS3
   class Application < Sinatra::Application
     include AwsHelpers
+    include Settings
 
     configure do
       disable :sessions
@@ -12,39 +13,12 @@ module GitLfsS3
     end
 
     helpers do
-      def logger
-        settings.logger
-      end
-
-      def digest
-        OpenSSL::Digest.new('sha256')
-      end
-
-      def project
-        GitLfsS3::Application.settings.project_selector(request)
-      end
-
-      def expiriation
-        GitLfsS3::Application.settings.token_expiration || (60 * 15) # Fifteen minutes
-      end
-
-      def secret
-        GitLfsS3::Application.settings.token_secret || 'secret'
-      end
-
-      def verbose_errors?
-        GitLfsS3::Application.settings.verbose_errors || false
-      end
-
       def verify_link 
-        protocol = GitLfsS3::Application.settings.server_ssl ? 'https' : 'http'
-        server_path = GitLfsS3::Application.settings.server_path.gsub(':project', project)
-        host = request.host_with_port
-        "#{protocol}://#{host}#{File.join(server_path, 'verify')}?token=1"
+        "#{protocol}://#{request.host_with_port}#{File.join(server_path, 'verify')}?token=1"
       end
 
       def verify_header
-        expires = (Time.now.utc + expriation).iso8601
+        expires = (Time.now.utc + expiration).iso8601
         message = {project: project, expires: expires}
         message[:verify] = OpenSSL::HMAC.hexdigest(digest, secret, message.to_json)
         token = Base64.strict_encode64(MultiJson.dump(message))
