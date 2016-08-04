@@ -29,7 +29,7 @@ module GitLfsS3
       end
 
       def secret
-        GitLfsS3::Application.settings.token_secret
+        GitLfsS3::Application.settings.token_secret || 'secret'
       end
 
       def verbose_errors?
