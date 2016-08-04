@@ -136,15 +136,14 @@ module GitLfsS3
 
       status 200
       resp = {
-        'oid' => params[:oid],
-        'size' => object.size,
-        '_links' => {
-          'self' => {
-            'href' => request.url
+        oid: params[:oid],
+        size: object.size,
+        _links: {
+          self: {
+            href: request.url
           },
-          'download' => {
-            # TODO: cloudfront support
-            'href' => object.presigned_url_with_token(:get)
+          download: {
+            href: object.presigned_url_with_token(:get)
           }
         }
       }
