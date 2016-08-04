@@ -32,6 +32,10 @@ module GitLfsS3
         GitLfsS3::Application.settings.token_secret
       end
 
+      def verbose_errors?
+        GitLfsS3::Application.settings.verbose_errors || false
+      end
+
       def verify_link 
         protocol = GitLfsS3::Application.settings.server_ssl ? 'https' : 'http'
         server_path = GitLfsS3::Application.settings.server_path.gsub(':project', project)
@@ -75,7 +79,7 @@ module GitLfsS3
       result, message = check_authorizization
       unless result
         response['WWW-Authenticate'] = %(RemoteAuth realm="Restricted Area")
-        throw(:halt, [401, message])
+        throw(:halt, [401, verbose_errors? ? message : 'Invalid auth token'])
       end
     end
 
