@@ -1,9 +1,5 @@
 module GitLfsS3
   module Settings
-    def logger
-      settings.logger
-    end
-
     def digest
       OpenSSL::Digest.new('sha256')
     end

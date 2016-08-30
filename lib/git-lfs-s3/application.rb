@@ -24,6 +24,10 @@ module GitLfsS3
         token = Base64.strict_encode64(MultiJson.dump(message))
         {Authorization: "RemoteAuth #{token}"}
       end
+
+      def logger
+        settings.logger
+      end
     end
 
     def check_authorizization
